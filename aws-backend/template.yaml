@@ -1,0 +1,172 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  PDV Cantina Unifor - Infraestrutura AWS Serverless Completa
+  API Gateway + AWS Lambda (Node.js 20.x) + Amazon DynamoDB para as 6 Transacoes do Sistema
+
+Globals:
+  Function:
+    Timeout: 15
+    MemorySize: 256
+    Runtime: nodejs20.x
+    Architectures:
+      - x86_64
+    Environment:
+      Variables:
+        PRODUCTS_TABLE: !Ref ProductsTable
+        CUSTOMERS_TABLE: !Ref CustomersTable
+        ORDERS_TABLE: !Ref OrdersTable
+        STOCK_MOVEMENTS_TABLE: !Ref StockMovementsTable
+        CASH_MOVEMENTS_TABLE: !Ref CashMovementsTable
+
+Resources:
+  # ===========================================================================
+  # API GATEWAY HTTP API COM CORS HABILITADO PARA O FRONTEND REACT
+  # ===========================================================================
+  CantinaHttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      StageName: prod
+      CorsConfiguration:
+        AllowOrigins:
+          - "*"
+        AllowHeaders:
+          - Content-Type
+          - Authorization
+        AllowMethods:
+          - GET
+          - POST
+          - PUT
+          - OPTIONS
+
+  # ===========================================================================
+  # FUNCOES AWS LAMBDA PARA AS 6 TRANSACOES + ESTADO INICIAL
+  # ===========================================================================
+  CantinaApiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: handlers.router
+      Description: Router Serverless das 6 transacoes do PDV Cantina Unifor
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ProductsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref CustomersTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref OrdersTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref StockMovementsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref CashMovementsTable
+      Events:
+        GetState:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref CantinaHttpApi
+            Path: /state
+            Method: GET
+        Tx1Checkout:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref CantinaHttpApi
+            Path: /transactions/checkout
+            Method: POST
+        Tx2Products:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref CantinaHttpApi
+            Path: /transactions/products
+            Method: POST
+        Tx3StockMovements:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref CantinaHttpApi
+            Path: /transactions/stock-movements
+            Method: POST
+        Tx4CustomersWallet:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref CantinaHttpApi
+            Path: /transactions/customers-wallet
+            Method: POST
+        Tx5OrdersStatus:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref CantinaHttpApi
+            Path: /transactions/orders-status
+            Method: POST
+        Tx6CashRegister:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref CantinaHttpApi
+            Path: /transactions/cash-register
+            Method: POST
+
+  # ===========================================================================
+  # TABELAS AMAZON DYNAMODB (ON-DEMAND / PAY-PER-REQUEST FREE TIER FRIENDLY)
+  # ===========================================================================
+  ProductsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: UniforCantinaProducts
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+
+  CustomersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: UniforCantinaCustomers
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+
+  OrdersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: UniforCantinaOrders
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+
+  StockMovementsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: UniforCantinaStockMovements
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+
+  CashMovementsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: UniforCantinaCashMovements
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+
+Outputs:
+  ApiGatewayEndpoint:
+    Description: "URL do API Gateway para configurar em VITE_AWS_API_URL no Frontend React"
+    Value: !Sub "https://${CantinaHttpApi}.execute-api.${AWS::Region}.amazonaws.com/prod"
