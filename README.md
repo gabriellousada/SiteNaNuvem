@@ -1,72 +1,73 @@
-# Sistema PDV Cantina Unifor • React + AWS Cloud Serverless
+Calma! Vou te ajudar. Coceira no pênis é algo relativamente comum e pode ter várias causas. Não precisa ficar com vergonha de falar sobre isso.
+1. O que pode estar causando a coceira?
+As causas mais comuns são:
+- Fungos (candidíase): coceira, vermelhidão e às vezes uma substância branca na glande.
+- Irritação ou alergia: sabonete, preservativo, lubrificante ou produtos de higiene.
+- Balanite: inflamação da cabeça do pênis, podendo causar coceira, vermelhidão e inchaço.
+- ISTs: algumas infecções sexualmente transmissíveis também podem provocar coceira, feridas ou secreção.
+2. O que fazer agora?
+1. Lave o pênis com água e delicadamente.
+2. Evite sabonetes perfumados na região.
+3. Seque bem, sem esfregar.
+4. Use cueca limpa e de algodão.
+5. Evite relações sexuais até entender a causa.
+6. Não passe pomadas ou medicamentos por conta própria.
+3. Preciso que você responda 5 perguntinhas:
+1. Onde está coçando?
 
-Sistema de Ponto de Venda (PDV) para a **Cantina da Universidade de Fortaleza (Unifor)**, desenvolvido em **HTML5, CSS3, JavaScript (ES6+) e React 18**, integrado a uma arquitetura **Full Serverless na AWS (Amazon API Gateway, AWS Lambda e Amazon DynamoDB)**, contando também com um **Simulador Local AWS Serverless** para execução e avaliação imediata sem custos.
+Na cabeça do pênis (glande)
 
----
+Na pele do pênis
 
-## 1. Atendimento aos Requisitos e as 6 Transações Implementadas
+Na pele que cobre a cabeça
 
-O sistema contempla **6 transações completas de negócio** (atendendo tanto ao requisito mínimo de equipes de até 2 pessoas quanto ao requisito de 6 transações para trabalho individual):
+No saco escrotal
 
-| # | Transação (Feature) | Ação Executada pelo Usuário | Rota API Gateway / Função Lambda | Tabelas DynamoDB Afetadas |
-|---|---|---|---|---|
-| **T1** | **Realizar Venda no PDV (Checkout)** | Seleciona produtos do cardápio, vincula matrícula (opcional), aplica desconto, escolhe meio de pagamento (`PIX`, `Carteira Unifor`, `Cartão`, `Dinheiro` com cálculo de troco), abate o estoque automaticamente, debita o saldo do aluno e emite a Ficha/Comprovante. | `POST /transactions/checkout` (`CheckoutSaleLambda`) | `UniforCantinaOrders`, `UniforCantinaProducts`, `UniforCantinaCustomers`, `UniforCantinaCashMovements` |
-| **T2** | **Cadastrar e Editar Produto do Cardápio** | Cadastra novos salgados, bebidas, lanches ou combos com SKU, preço de venda, custo unitário, cálculo automático de margem de lucro, estoque inicial e estoque mínimo de alerta, ou edita itens existentes. | `POST /transactions/products` (`UpsertProductLambda`) | `UniforCantinaProducts` |
-| **T3** | **Reposição e Baixa de Estoque** | Registra entrada de mercadorias (fornada/fornecedor) ou saída por perda/avaria/consumo interno, atualizando o saldo de estoque do produto e gravando o log de rastreabilidade. | `POST /transactions/stock-movements` (`AdjustStockLambda`) | `UniforCantinaProducts`, `UniforCantinaStockMovements` |
-| **T4** | **Carteira Unifor (Cadastro de Aluno & Recarga)** | Cadastra alunos/professores com Matrícula Unifor e curso, e realiza recargas pré-pagas na Carteira Digital da Cantina, refletindo a entrada financeira no caixa. | `POST /transactions/customers-wallet` (`CustomerWalletLambda`) | `UniforCantinaCustomers`, `UniforCantinaCashMovements` |
-| **T5** | **Fila de Pedidos da Cozinha & Estorno de Venda** | Avança o status operacional do pedido (`Em Preparo` → `Pronto para Retirada` → `Entregue`) ou realiza o **Estorno/Cancelamento** da venda (devolvendo automaticamente os itens ao estoque e restituindo o saldo da Carteira Unifor). | `POST /transactions/orders-status` (`OrderFulfillmentLambda`) | `UniforCantinaOrders`, `UniforCantinaProducts`, `UniforCantinaCustomers`, `UniforCantinaCashMovements` |
-| **T6** | **Operação de Caixa e Turno** | Executa Abertura de Caixa (fundo de troco), Suprimento (reforço de cédulas), Sangria (retirada para cofre) e Fechamento de Turno no Livro Razão do Caixa. | `POST /transactions/cash-register` (`CashRegisterOperationLambda`) | `UniforCantinaCashMovements` |
+Em todo o pênis
 
----
 
-## 2. Como Executar Localmente (Desenvolvimento / Apresentação)
+2. Está vermelho ou com bolinhas?
 
-```bash
-npm install
-npm run dev
-```
+Sim
 
-Acesse `http://localhost:5173`. Por padrão, o sistema inicia com o **Simulador Local AWS Serverless** ativo e populado com dados realistas da Cantina da Unifor, exibindo no rodapé o console **AWS CloudWatch Live Telemetry** a cada transação executada.
+Não
 
----
+Não sei
 
-## 3. Como Fazer o Deploy na Nuvem AWS
 
-### Pré-requisitos
-1. Conta na AWS (compatível com **AWS Free Tier**).
-2. [AWS CLI](https://aws.amazon.com/cli/) configurada (`aws configure`).
-3. [AWS SAM CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html) instalada.
+3. Além da coceira, sente alguma coisa?
 
-### Opção A: Deploy Automatizado via Script PowerShell
-No Windows PowerShell, na raiz do projeto:
+Só coceira
 
-```powershell
-.\deploy-aws.ps1 -StackName "pdv-cantina-unifor-stack" -Region "us-east-1"
-```
+Ardência ao urinar
 
-### Opção B: Passo a Passo Manual (Backend + Frontend)
+Secreção ou líquido saindo
 
-#### 1. Deploy do Backend (DynamoDB + Lambda + API Gateway)
-```bash
-cd aws-backend/src
-npm install
-cd ..
-sam build
-sam deploy --guided
-```
-Ao final do deploy, o CloudFormation exibirá o output `ApiGatewayEndpoint` (ex.: `https://a1b2c3d4.execute-api.us-east-1.amazonaws.com/prod`).
+Feridas ou bolhas
 
-#### 2. Conectar o Frontend React ao API Gateway
-Você pode conectar de duas formas:
-- **Pela própria interface gráfica do sistema**: clique na aba **AWS (Arquitetura Nuvem AWS)**, altere o modo para **AWS Cloud Real**, cole a URL do `ApiGatewayEndpoint` e clique em **Salvar Configuração AWS**.
-- **Via variável de ambiente no build**: crie um arquivo `.env` na raiz com `VITE_AWS_API_URL=https://sua-api.execute-api.us-east-1.amazonaws.com/prod` e rode `npm run build`.
+Inchaço ou dor
 
-#### 3. Hospedar o Frontend React na AWS (AWS Amplify ou S3 + CloudFront)
-- **Via AWS Amplify Console**: conecte seu repositório Git ao AWS Amplify. O arquivo `amplify.yml` na raiz já configura o build automático da pasta `dist/`.
-- **Via Amazon S3**:
-  ```bash
-  npm run build
-  aws s3 mb s3://pdv-cantina-unifor-web
-  aws s3 website s3://pdv-cantina-unifor-web/ --index-document index.html --error-document index.html
-  aws s3 sync dist/ s3://pdv-cantina-unifor-web --delete
-  ```
+
+4. Há quanto tempo começou?
+
+Hoje
+
+Há 2 ou 3 dias
+
+Há uma semana
+
+Há mais de uma semana
+
+
+5. Teve relação sexual recentemente, sem preservativo?
+
+Sim
+
+Não
+
+Prefiro não responder
+
+Enviar respostas
+Atenção: se tiver dor forte, inchaço importante, febre, dificuldade para urinar ou dificuldade de recolocar a pele sobre a glande, procure atendimento médico rapidamente.
+
+Com suas respostas, consigo te orientar melhor sobre o que pode estar acontecendo e qual profissional procurar.
