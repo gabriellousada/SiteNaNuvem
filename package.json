@@ -1,13 +1,16 @@
 {
   "name": "pdv-cantina-unifor-aws",
   "private": true,
-  "version": "1.0.0",
-  "description": "Sistema PDV Cantina Unifor - React Frontend + AWS Serverless (API Gateway, Lambda, DynamoDB)",
+  "version": "2.0.0",
+  "description": "Sistema PDV Cantina Unifor - Frontend React + Backend Node.js REST + SQLite + JWT/RBAC + Testes Formais",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "backend": "npm --prefix backend start",
+    "backend:dev": "npm --prefix backend run dev",
+    "test:backend": "npm --prefix backend test"
   },
   "dependencies": {
     "lucide-react": "^0.460.0",

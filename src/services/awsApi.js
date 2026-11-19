@@ -6,16 +6,23 @@ import {
   INITIAL_CASH_MOVEMENTS
 } from '../data/initialData';
 
+const API_BASE = (import.meta.env.VITE_API_URL || '/api').replace(/\/+$/, '');
+
 const STORAGE_KEYS = {
-  PRODUCTS: 'unifor_pdv_products_v1',
-  CUSTOMERS: 'unifor_pdv_customers_v1',
-  ORDERS: 'unifor_pdv_orders_v1',
-  STOCK_MOVEMENTS: 'unifor_pdv_stock_movements_v1',
-  CASH_MOVEMENTS: 'unifor_pdv_cash_movements_v1',
-  CASH_STATUS: 'unifor_pdv_cash_status_v1',
-  AWS_CONFIG: 'unifor_pdv_aws_config_v1',
-  AWS_LOGS: 'unifor_pdv_aws_logs_v1'
+  PRODUCTS: 'unifor_pdv_products_v2',
+  CUSTOMERS: 'unifor_pdv_customers_v2',
+  ORDERS: 'unifor_pdv_orders_v2',
+  STOCK_MOVEMENTS: 'unifor_pdv_stock_movements_v2',
+  CASH_MOVEMENTS: 'unifor_pdv_cash_movements_v2',
+  CASH_STATUS: 'unifor_pdv_cash_status_v2',
+  USERS: 'unifor_pdv_users_v2',
+  SESSION: 'unifor_pdv_session_v2'
 };
+
+const DEFAULT_LOCAL_USERS = [
+  { id: 'USR-001', name: 'Gerente Cantina Unifor', email: 'admin@unifor.br', password: 'admin123', role: 'ADMIN' },
+  { id: 'USR-002', name: 'Operador Caixa 01', email: 'caixa@unifor.br', password: 'caixa123', role: 'OPERADOR' }
+];
 
 function loadFromStorage(key, fallback) {
   try {
@@ -38,77 +45,21 @@ function saveToStorage(key, value) {
   }
 }
 
-export function getAwsConfig() {
-  const envUrl = import.meta.env.VITE_AWS_API_URL || '';
-  return loadFromStorage(STORAGE_KEYS.AWS_CONFIG, {
-    mode: envUrl ? 'cloud' : 'simulator', // 'simulator' | 'cloud'
-    apiGatewayUrl: envUrl || 'https://a1b2c3d4e5.execute-api.us-east-1.amazonaws.com/prod',
-    region: 'us-east-1',
-    stackName: 'pdv-cantina-unifor-stack'
-  });
+export function getSession() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.SESSION);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
 }
 
-export function saveAwsConfig(config) {
-  saveToStorage(STORAGE_KEYS.AWS_CONFIG, config);
-  return config;
+export function saveSession(session) {
+  saveToStorage(STORAGE_KEYS.SESSION, session);
 }
 
-export function getAwsLogs() {
-  return loadFromStorage(STORAGE_KEYS.AWS_LOGS, [
-    {
-      id: 'LOG-INIT',
-      timestamp: new Date().toISOString(),
-      method: 'GET',
-      route: '/bootstrap',
-      lambda: 'BootstrapStateHandler',
-      dynamoTable: 'UniforCantina* (4 tabelas)',
-      transactionCode: 'SYSTEM_INIT',
-      status: 200,
-      latencyMs: 38,
-      mode: 'AWS Local Simulator',
-      summary: 'Tabelas DynamoDB sincronizadas com sucesso'
-    }
-  ]);
-}
-
-function appendAwsLog(entry) {
-  const logs = getAwsLogs();
-  const next = [
-    {
-      id: `REQ-${Math.random().toString(36).substring(2, 7).toUpperCase()}`,
-      timestamp: new Date().toISOString(),
-      ...entry
-    },
-    ...logs.slice(0, 39)
-  ];
-  saveToStorage(STORAGE_KEYS.AWS_LOGS, next);
-  return next;
-}
-
-export function clearAwsLogs() {
-  saveToStorage(STORAGE_KEYS.AWS_LOGS, []);
-  return [];
-}
-
-export function resetAllDemoData() {
-  saveToStorage(STORAGE_KEYS.PRODUCTS, INITIAL_PRODUCTS);
-  saveToStorage(STORAGE_KEYS.CUSTOMERS, INITIAL_CUSTOMERS);
-  saveToStorage(STORAGE_KEYS.ORDERS, INITIAL_ORDERS);
-  saveToStorage(STORAGE_KEYS.STOCK_MOVEMENTS, INITIAL_STOCK_MOVEMENTS);
-  saveToStorage(STORAGE_KEYS.CASH_MOVEMENTS, INITIAL_CASH_MOVEMENTS);
-  saveToStorage(STORAGE_KEYS.CASH_STATUS, { isOpen: true, openedAt: new Date().toISOString(), operator: 'Operador Caixa 01' });
-  appendAwsLog({
-    method: 'POST',
-    route: '/admin/reset-seed',
-    lambda: 'SeedDatabaseHandler',
-    dynamoTable: 'UniforCantina*',
-    transactionCode: 'SEED_DATA',
-    status: 200,
-    latencyMs: 54,
-    mode: 'AWS Local Simulator',
-    summary: 'Dados originais de demonstração restaurados nas tabelas DynamoDB'
-  });
-  return getFullStateLocal();
+export function clearSession() {
+  localStorage.removeItem(STORAGE_KEYS.SESSION);
 }
 
 export function getFullStateLocal() {
@@ -122,130 +73,190 @@ export function getFullStateLocal() {
       isOpen: true,
       openedAt: new Date(Date.now() - 180 * 60000).toISOString(),
       operator: 'Operador Caixa 01'
-    }),
-    awsLogs: getAwsLogs()
+    })
   };
 }
 
-async function callCloudOrSimulate({
-  method,
-  route,
-  lambda,
-  dynamoTable,
-  transactionCode,
-  payload,
-  localExecutor
-}) {
-  const config = getAwsConfig();
-  const start = performance.now();
-
-  if (config.mode === 'cloud' && config.apiGatewayUrl) {
-    const cleanBase = config.apiGatewayUrl.replace(/\/+$/, '');
-    const response = await fetch(`${cleanBase}${route}`, {
-      method,
-      headers: { 'Content-Type': 'application/json' },
-      body: payload ? JSON.stringify(payload) : undefined
-    });
-    const data = await response.json();
-    const latencyMs = Math.round(performance.now() - start);
-
-    if (!response.ok) {
-      appendAwsLog({
-        method,
-        route,
-        lambda,
-        dynamoTable,
-        transactionCode,
-        status: response.status,
-        latencyMs,
-        mode: 'AWS Cloud API Gateway',
-        summary: data.message || 'Erro na requisição AWS Lambda'
-      });
-      throw new Error(data.message || `Erro HTTP ${response.status} na API Gateway`);
-    }
-
-    appendAwsLog({
-      method,
-      route,
-      lambda,
-      dynamoTable,
-      transactionCode,
-      status: response.status,
-      latencyMs,
-      mode: 'AWS Cloud API Gateway',
-      summary: data.summary || `${transactionCode} executado na nuvem AWS`
-    });
-    return data;
+/**
+ * Realiza chamada ao Web Service REST Node.js + SQLite com JWT.
+ * Caso o servidor Node.js não esteja acessível (ex: hospedagem estática sem backend remoto),
+ * executa o fallback local respeitando integralmente Autenticação e Autorização (RBAC).
+ */
+async function requestApiOrFallback({ method = 'GET', path, body, localExecutor }) {
+  const session = getSession();
+  const headers = { 'Content-Type': 'application/json' };
+  if (session?.token && !session.isLocalFallback) {
+    headers.Authorization = `Bearer ${session.token}`;
   }
 
-  // Simulador AWS Serverless Local (Idêntico ao comportamento das Lambdas em aws-backend/src/handlers.mjs)
-  await new Promise((r) => setTimeout(r, 90));
-  const result = localExecutor();
-  const latencyMs = Math.round(performance.now() - start);
+  // Se a sessão atual foi autenticada no fallback local, mantém coerência local
+  if (session?.isLocalFallback && localExecutor && !path.startsWith('/auth/')) {
+    return localExecutor(session.user);
+  }
 
-  appendAwsLog({
-    method,
-    route,
-    lambda,
-    dynamoTable,
-    transactionCode,
-    status: method === 'POST' ? 201 : 200,
-    latencyMs,
-    mode: 'AWS Local Simulator',
-    summary: result.summary
+  try {
+    const response = await fetch(`${API_BASE}${path}`, {
+      method,
+      headers,
+      body: body ? JSON.stringify(body) : undefined
+    });
+
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      throw new TypeError('BACKEND_UNAVAILABLE');
+    }
+
+    const data = await response.json();
+    if (!response.ok) {
+      const apiErr = new Error(data.message || `Erro HTTP ${response.status}`);
+      apiErr.status = response.status;
+      apiErr.isApiError = true;
+      throw apiErr;
+    }
+
+    return data;
+  } catch (err) {
+    if (err.isApiError) {
+      throw err;
+    }
+    if (localExecutor) {
+      return localExecutor(session?.user || null);
+    }
+    throw new Error('Não foi possível conectar ao servidor backend Node.js.');
+  }
+}
+
+// ============================================================================
+// CONTROLE DE ACESSO (AUTENTICAÇÃO E AUTORIZAÇÃO)
+// ============================================================================
+export async function loginUser({ email, password }) {
+  const res = await requestApiOrFallback({
+    method: 'POST',
+    path: '/auth/login',
+    body: { email, password },
+    localExecutor: () => {
+      const users = loadFromStorage(STORAGE_KEYS.USERS, DEFAULT_LOCAL_USERS);
+      const found = users.find(
+        (u) => u.email.toLowerCase() === String(email).trim().toLowerCase() && u.password === password
+      );
+      if (!found) {
+        throw new Error('E-mail ou senha inválidos.');
+      }
+      const user = { id: found.id, name: found.name, email: found.email, role: found.role };
+      return {
+        token: `local-jwt-${found.id}`,
+        user,
+        isLocalFallback: true,
+        message: `Bem-vindo(a), ${user.name}!`
+      };
+    }
   });
 
-  return result;
+  saveSession({
+    token: res.token,
+    user: res.user,
+    isLocalFallback: Boolean(res.isLocalFallback)
+  });
+  return res;
+}
+
+export async function registerUser({ name, email, password, role = 'OPERADOR' }) {
+  const res = await requestApiOrFallback({
+    method: 'POST',
+    path: '/auth/register',
+    body: { name, email, password, role },
+    localExecutor: () => {
+      if (!name || !email || !password || password.length < 6) {
+        throw new Error('Preencha nome, e-mail e senha com no mínimo 6 caracteres.');
+      }
+      const users = loadFromStorage(STORAGE_KEYS.USERS, DEFAULT_LOCAL_USERS);
+      const cleanEmail = String(email).trim().toLowerCase();
+      if (users.some((u) => u.email.toLowerCase() === cleanEmail)) {
+        throw new Error('Já existe um usuário cadastrado com este e-mail.');
+      }
+      const newUser = {
+        id: `USR-${String(users.length + 1).padStart(3, '0')}`,
+        name: name.trim(),
+        email: cleanEmail,
+        password,
+        role: role === 'ADMIN' ? 'ADMIN' : 'OPERADOR'
+      };
+      users.push(newUser);
+      saveToStorage(STORAGE_KEYS.USERS, users);
+      const safeUser = { id: newUser.id, name: newUser.name, email: newUser.email, role: newUser.role };
+      return {
+        token: `local-jwt-${newUser.id}`,
+        user: safeUser,
+        isLocalFallback: true,
+        message: `Usuário ${safeUser.name} cadastrado com sucesso!`
+      };
+    }
+  });
+
+  saveSession({
+    token: res.token,
+    user: res.user,
+    isLocalFallback: Boolean(res.isLocalFallback)
+  });
+  return res;
 }
 
 export async function fetchInitialState() {
-  const config = getAwsConfig();
-  if (config.mode === 'cloud' && config.apiGatewayUrl) {
-    try {
-      const res = await callCloudOrSimulate({
-        method: 'GET',
-        route: '/state',
-        lambda: 'GetSystemStateHandler',
-        dynamoTable: 'UniforCantina*',
-        transactionCode: 'FETCH_STATE'
+  return requestApiOrFallback({
+    method: 'GET',
+    path: '/state',
+    localExecutor: () => getFullStateLocal()
+  });
+}
+
+export async function resetAllDemoData() {
+  return requestApiOrFallback({
+    method: 'POST',
+    path: '/admin/reset',
+    localExecutor: (user) => {
+      if (user?.role !== 'ADMIN') {
+        throw new Error('Acesso negado (403): apenas usuários com perfil [ADMIN] podem restaurar os dados.');
+      }
+      saveToStorage(STORAGE_KEYS.PRODUCTS, INITIAL_PRODUCTS);
+      saveToStorage(STORAGE_KEYS.CUSTOMERS, INITIAL_CUSTOMERS);
+      saveToStorage(STORAGE_KEYS.ORDERS, INITIAL_ORDERS);
+      saveToStorage(STORAGE_KEYS.STOCK_MOVEMENTS, INITIAL_STOCK_MOVEMENTS);
+      saveToStorage(STORAGE_KEYS.CASH_MOVEMENTS, INITIAL_CASH_MOVEMENTS);
+      saveToStorage(STORAGE_KEYS.CASH_STATUS, {
+        isOpen: true,
+        openedAt: new Date().toISOString(),
+        operator: user.name
       });
-      return { ...res, awsLogs: getAwsLogs() };
-    } catch (err) {
-      console.warn('Falha ao conectar ao endpoint Cloud AWS, mantendo estado local:', err);
+      return {
+        state: getFullStateLocal(),
+        summary: 'Dados de demonstração restaurados com sucesso.'
+      };
     }
-  }
-  return getFullStateLocal();
+  });
 }
 
 // ============================================================================
 // TRANSAÇÃO 1: REALIZAR VENDA NO PDV (CHECKOUT DE PEDIDO)
 // ============================================================================
 export async function executeTransaction1CheckoutSale(orderInput) {
-  return callCloudOrSimulate({
+  return requestApiOrFallback({
     method: 'POST',
-    route: '/transactions/checkout',
-    lambda: 'CheckoutSaleLambda',
-    dynamoTable: 'UniforCantinaOrders + Products + Customers + Cash',
-    transactionCode: 'TX_01_CHECKOUT_VENDA',
-    payload: orderInput,
-    localExecutor: () => {
+    path: '/transactions/checkout',
+    body: orderInput,
+    localExecutor: (user) => {
       const state = getFullStateLocal();
       if (!state.cashStatus.isOpen) {
         throw new Error('O caixa está fechado! Realize a Abertura de Caixa (Transação 6) antes de vender.');
       }
-
       const { items, customerId, paymentMethod, discount = 0, cashReceived = 0 } = orderInput;
       if (!items || items.length === 0) {
         throw new Error('Adicione ao menos 1 item ao carrinho para finalizar a venda.');
       }
 
-      const subtotal = Number(
-        items.reduce((acc, item) => acc + item.price * item.qty, 0).toFixed(2)
-      );
+      const subtotal = Number(items.reduce((acc, item) => acc + item.price * item.qty, 0).toFixed(2));
       const validDiscount = Math.min(Math.max(0, Number(discount) || 0), subtotal);
       const total = Number((subtotal - validDiscount).toFixed(2));
 
-      // Verificar estoque de cada item
       const updatedProducts = [...state.products];
       for (const item of items) {
         const idx = updatedProducts.findIndex((p) => p.id === item.productId);
@@ -255,13 +266,9 @@ export async function executeTransaction1CheckoutSale(orderInput) {
             `Estoque insuficiente para "${updatedProducts[idx].name}" (Disponível: ${updatedProducts[idx].stock}).`
           );
         }
-        updatedProducts[idx] = {
-          ...updatedProducts[idx],
-          stock: updatedProducts[idx].stock - item.qty
-        };
+        updatedProducts[idx] = { ...updatedProducts[idx], stock: updatedProducts[idx].stock - item.qty };
       }
 
-      // Verificar cliente se pagamento for Carteira Unifor
       const updatedCustomers = [...state.customers];
       let customerLabel = 'Cliente Balcão';
       if (customerId) {
@@ -309,25 +316,22 @@ export async function executeTransaction1CheckoutSale(orderInput) {
           paymentMethod === 'Dinheiro' && Number(cashReceived) > total
             ? Number((Number(cashReceived) - total).toFixed(2))
             : 0,
-        items: items.map((i) => ({
-          productId: i.productId,
-          name: i.name,
-          price: i.price,
-          qty: i.qty
-        }))
+        items: items.map((i) => ({ productId: i.productId, name: i.name, price: i.price, qty: i.qty }))
       };
 
       const updatedOrders = [newOrder, ...state.orders];
-      const newCashMov = {
-        id: `CX-${String(state.cashMovements.length + 1).padStart(3, '0')}`,
-        createdAt: new Date().toISOString(),
-        type: 'VENDA',
-        amount: total,
-        paymentMethod,
-        description: `Venda ${newOrder.id} (${newOrder.ficha}) - ${customerLabel}`,
-        operator: state.cashStatus.operator || 'Operador Caixa 01'
-      };
-      const updatedCash = [newCashMov, ...state.cashMovements];
+      const updatedCash = [
+        {
+          id: `CX-${String(state.cashMovements.length + 1).padStart(3, '0')}`,
+          createdAt: new Date().toISOString(),
+          type: 'VENDA',
+          amount: total,
+          paymentMethod,
+          description: `Venda ${newOrder.id} (${newOrder.ficha}) - ${customerLabel}`,
+          operator: user?.name || 'Operador Caixa 01'
+        },
+        ...state.cashMovements
+      ];
 
       saveToStorage(STORAGE_KEYS.PRODUCTS, updatedProducts);
       saveToStorage(STORAGE_KEYS.CUSTOMERS, updatedCustomers);
@@ -337,24 +341,24 @@ export async function executeTransaction1CheckoutSale(orderInput) {
       return {
         order: newOrder,
         state: getFullStateLocal(),
-        summary: `Venda ${newOrder.id} (${newOrder.ficha}) no valor de R$ ${total.toFixed(2)} gravada no DynamoDB`
+        summary: `Venda ${newOrder.id} (${newOrder.ficha}) no valor de R$ ${total.toFixed(2)} registrada.`
       };
     }
   });
 }
 
 // ============================================================================
-// TRANSAÇÃO 2: CADASTRAR OU ATUALIZAR PRODUTO DO CARDÁPIO
+// TRANSAÇÃO 2: CADASTRAR OU ATUALIZAR PRODUTO DO CARDÁPIO (ADMIN)
 // ============================================================================
 export async function executeTransaction2UpsertProduct(productInput) {
-  return callCloudOrSimulate({
+  return requestApiOrFallback({
     method: 'POST',
-    route: '/transactions/products',
-    lambda: 'UpsertProductLambda',
-    dynamoTable: 'UniforCantinaProducts',
-    transactionCode: 'TX_02_CADASTRO_PRODUTO',
-    payload: productInput,
-    localExecutor: () => {
+    path: '/transactions/products',
+    body: productInput,
+    localExecutor: (user) => {
+      if (user?.role !== 'ADMIN') {
+        throw new Error('Acesso negado (403): apenas perfil [ADMIN] pode cadastrar ou editar produtos.');
+      }
       const state = getFullStateLocal();
       const { id, sku, name, category, price, cost, stock, minStock, emoji } = productInput;
       if (!name || !sku || Number(price) <= 0) {
@@ -400,24 +404,24 @@ export async function executeTransaction2UpsertProduct(productInput) {
       return {
         product: savedProduct,
         state: getFullStateLocal(),
-        summary: `Produto "${savedProduct.name}" (${savedProduct.sku}) ${actionLabel} em UniforCantinaProducts`
+        summary: `Produto "${savedProduct.name}" (${savedProduct.sku}) ${actionLabel}.`
       };
     }
   });
 }
 
 // ============================================================================
-// TRANSAÇÃO 3: REPOSIÇÃO OU BAIXA DE ESTOQUE (MOVIMENTAÇÃO DE INSUMOS)
+// TRANSAÇÃO 3: REPOSIÇÃO OU BAIXA DE ESTOQUE (ADMIN)
 // ============================================================================
 export async function executeTransaction3StockMovement(movementInput) {
-  return callCloudOrSimulate({
+  return requestApiOrFallback({
     method: 'POST',
-    route: '/transactions/stock-movements',
-    lambda: 'AdjustStockLambda',
-    dynamoTable: 'UniforCantinaProducts + UniforCantinaStockMovements',
-    transactionCode: 'TX_03_MOVIMENTACAO_ESTOQUE',
-    payload: movementInput,
-    localExecutor: () => {
+    path: '/transactions/stock-movements',
+    body: movementInput,
+    localExecutor: (user) => {
+      if (user?.role !== 'ADMIN') {
+        throw new Error('Acesso negado (403): apenas perfil [ADMIN] pode movimentar o estoque.');
+      }
       const state = getFullStateLocal();
       const { productId, type, quantity, reason } = movementInput;
       const qty = Number(quantity);
@@ -447,44 +451,38 @@ export async function executeTransaction3StockMovement(movementInput) {
         type,
         quantity: qty,
         reason: reason?.trim() || (type === 'ENTRADA' ? 'Reposição de lote' : 'Baixa operacional'),
-        operator: state.cashStatus.operator || 'Operador Caixa 01'
+        operator: user?.name || 'Gerente'
       };
 
-      const updatedMovements = [movement, ...state.stockMovements];
       saveToStorage(STORAGE_KEYS.PRODUCTS, updatedProducts);
-      saveToStorage(STORAGE_KEYS.STOCK_MOVEMENTS, updatedMovements);
+      saveToStorage(STORAGE_KEYS.STOCK_MOVEMENTS, [movement, ...state.stockMovements]);
 
       return {
         movement,
         state: getFullStateLocal(),
-        summary: `${type} de ${qty} un. em "${product.name}" (Novo estoque: ${newStock})`
+        summary: `${type} de ${qty} un. em "${product.name}" (Novo estoque: ${newStock}).`
       };
     }
   });
 }
 
 // ============================================================================
-// TRANSAÇÃO 4: CADASTRO DE ALUNO/CLIENTE E RECARGA DE CRÉDITOS (CARTEIRA UNIFOR)
+// TRANSAÇÃO 4: CADASTRO DE ALUNO E RECARGA DE CARTEIRA UNIFOR
 // ============================================================================
 export async function executeTransaction4CustomerWallet(walletInput) {
-  return callCloudOrSimulate({
+  return requestApiOrFallback({
     method: 'POST',
-    route: '/transactions/customers-wallet',
-    lambda: 'CustomerWalletLambda',
-    dynamoTable: 'UniforCantinaCustomers + UniforCantinaCashMovements',
-    transactionCode: 'TX_04_CARTEIRA_ALUNO',
-    payload: walletInput,
-    localExecutor: () => {
+    path: '/transactions/customers-wallet',
+    body: walletInput,
+    localExecutor: (user) => {
       const state = getFullStateLocal();
-      const { actionType } = walletInput; // 'CREATE_CUSTOMER' | 'TOPUP_WALLET'
+      const { actionType } = walletInput;
       const updatedCustomers = [...state.customers];
       const updatedCash = [...state.cashMovements];
 
       if (actionType === 'CREATE_CUSTOMER') {
         const { name, matricula, course, role, initialDeposit = 0, paymentMethod = 'PIX' } = walletInput;
-        if (!name || !matricula) {
-          throw new Error('Informe o Nome completo e a Matrícula Unifor.');
-        }
+        if (!name || !matricula) throw new Error('Informe o Nome completo e a Matrícula Unifor.');
         if (updatedCustomers.some((c) => c.matricula === matricula.trim())) {
           throw new Error(`Já existe um cadastro com a matrícula ${matricula}.`);
         }
@@ -509,7 +507,7 @@ export async function executeTransaction4CustomerWallet(walletInput) {
             amount: deposit,
             paymentMethod,
             description: `Recarga inicial Carteira Unifor - ${newCustomer.name} (${newCustomer.matricula})`,
-            operator: state.cashStatus.operator || 'Operador Caixa 01'
+            operator: user?.name || 'Operador Caixa 01'
           });
         }
 
@@ -519,11 +517,10 @@ export async function executeTransaction4CustomerWallet(walletInput) {
         return {
           customer: newCustomer,
           state: getFullStateLocal(),
-          summary: `Cliente ${newCustomer.name} (${newCustomer.matricula}) cadastrado com saldo R$ ${deposit.toFixed(2)}`
+          summary: `Cliente ${newCustomer.name} (${newCustomer.matricula}) cadastrado com saldo R$ ${deposit.toFixed(2)}.`
         };
       }
 
-      // Recarga de carteira existente
       const { customerId, amount, paymentMethod = 'PIX' } = walletInput;
       const topup = Number(amount);
       if (!customerId || !topup || topup <= 0) {
@@ -544,7 +541,7 @@ export async function executeTransaction4CustomerWallet(walletInput) {
         amount: topup,
         paymentMethod,
         description: `Recarga Carteira Unifor - ${target.name} (${target.matricula})`,
-        operator: state.cashStatus.operator || 'Operador Caixa 01'
+        operator: user?.name || 'Operador Caixa 01'
       });
 
       saveToStorage(STORAGE_KEYS.CUSTOMERS, updatedCustomers);
@@ -553,26 +550,25 @@ export async function executeTransaction4CustomerWallet(walletInput) {
       return {
         customer: updatedCustomers[idx],
         state: getFullStateLocal(),
-        summary: `Recarga de R$ ${topup.toFixed(2)} creditada para ${target.name} (Saldo: R$ ${newBalance.toFixed(2)})`
+        summary: `Recarga de R$ ${topup.toFixed(2)} creditada para ${target.name} (Saldo: R$ ${newBalance.toFixed(2)}).`
       };
     }
   });
 }
 
 // ============================================================================
-// TRANSAÇÃO 5: GESTÃO DE FILA DE PEDIDOS E ESTORNO/CANCELAMENTO DE VENDA
+// TRANSAÇÃO 5: FILA DE PEDIDOS E ESTORNO/CANCELAMENTO (ESTORNO EXIGE ADMIN)
 // ============================================================================
-export async function executeTransaction5OrderStatusOrRefund(orderActionInput) {
-  return callCloudOrSimulate({
-    method: 'POST',
-    route: '/transactions/orders-status',
-    lambda: 'OrderFulfillmentLambda',
-    dynamoTable: 'UniforCantinaOrders + Products + Customers + Cash',
-    transactionCode: 'TX_05_FILA_OU_ESTORNO_PEDIDO',
-    payload: orderActionInput,
-    localExecutor: () => {
+export async function executeTransaction5OrderStatusOrRefund({ orderId, newStatus, reason }) {
+  return requestApiOrFallback({
+    method: 'PATCH',
+    path: `/transactions/orders/${encodeURIComponent(orderId)}/status`,
+    body: { newStatus, reason },
+    localExecutor: (user) => {
+      if (newStatus === 'Cancelado/Estornado' && user?.role !== 'ADMIN') {
+        throw new Error('Acesso negado (403): apenas perfil [ADMIN] pode cancelar ou estornar vendas.');
+      }
       const state = getFullStateLocal();
-      const { orderId, newStatus, reason } = orderActionInput;
       const updatedOrders = [...state.orders];
       const idx = updatedOrders.findIndex((o) => o.id === orderId);
       if (idx === -1) throw new Error('Pedido não encontrado.');
@@ -587,18 +583,12 @@ export async function executeTransaction5OrderStatusOrRefund(orderActionInput) {
       const updatedCash = [...state.cashMovements];
 
       if (newStatus === 'Cancelado/Estornado') {
-        // Devolver produtos ao estoque
         for (const item of order.items) {
           const pIdx = updatedProducts.findIndex((p) => p.id === item.productId);
           if (pIdx !== -1) {
-            updatedProducts[pIdx] = {
-              ...updatedProducts[pIdx],
-              stock: updatedProducts[pIdx].stock + item.qty
-            };
+            updatedProducts[pIdx] = { ...updatedProducts[pIdx], stock: updatedProducts[pIdx].stock + item.qty };
           }
         }
-
-        // Estornar saldo se foi pago com Carteira Unifor
         if (order.customerId) {
           const cIdx = updatedCustomers.findIndex((c) => c.id === order.customerId);
           if (cIdx !== -1) {
@@ -613,7 +603,6 @@ export async function executeTransaction5OrderStatusOrRefund(orderActionInput) {
             };
           }
         }
-
         updatedCash.unshift({
           id: `CX-${String(updatedCash.length + 1).padStart(3, '0')}`,
           createdAt: new Date().toISOString(),
@@ -621,7 +610,7 @@ export async function executeTransaction5OrderStatusOrRefund(orderActionInput) {
           amount: -order.total,
           paymentMethod: order.paymentMethod,
           description: `Estorno ${order.id} (${order.ficha}) - Motivo: ${reason || 'Cancelamento solicitado'}`,
-          operator: state.cashStatus.operator || 'Operador Caixa 01'
+          operator: user?.name || 'Gerente'
         });
       }
 
@@ -639,38 +628,34 @@ export async function executeTransaction5OrderStatusOrRefund(orderActionInput) {
       return {
         order: updatedOrders[idx],
         state: getFullStateLocal(),
-        summary: `Pedido ${order.id} (${order.ficha}) atualizado para "${newStatus}"`
+        summary: `Pedido ${order.id} (${order.ficha}) atualizado para "${newStatus}".`
       };
     }
   });
 }
 
 // ============================================================================
-// TRANSAÇÃO 6: OPERAÇÃO DE CAIXA (ABERTURA, SANGRIA, SUPRIMENTO E FECHAMENTO)
+// TRANSAÇÃO 6: OPERAÇÃO DE CAIXA (SANGRIA E FECHAMENTO EXIGEM ADMIN)
 // ============================================================================
 export async function executeTransaction6CashRegisterOperation(cashInput) {
-  return callCloudOrSimulate({
+  return requestApiOrFallback({
     method: 'POST',
-    route: '/transactions/cash-register',
-    lambda: 'CashRegisterOperationLambda',
-    dynamoTable: 'UniforCantinaCashMovements',
-    transactionCode: 'TX_06_OPERACAO_CAIXA',
-    payload: cashInput,
-    localExecutor: () => {
-      const state = getFullStateLocal();
-      const { operationType, amount = 0, description = '', operator = 'Operador Caixa 01' } = cashInput;
-      // operationType: 'ABERTURA' | 'SUPRIMENTO' | 'SANGRIA' | 'FECHAMENTO'
+    path: '/transactions/cash-register',
+    body: cashInput,
+    localExecutor: (user) => {
+      const { operationType, amount = 0, description = '', operator } = cashInput;
+      if (['SANGRIA', 'FECHAMENTO'].includes(operationType) && user?.role !== 'ADMIN') {
+        throw new Error(`Acesso negado (403): a operação [${operationType}] exige perfil [ADMIN].`);
+      }
 
+      const state = getFullStateLocal();
       const updatedCash = [...state.cashMovements];
       let nextStatus = { ...state.cashStatus };
       const numericAmount = Math.abs(Number(amount) || 0);
+      const opName = operator || user?.name || 'Operador Caixa 01';
 
       if (operationType === 'ABERTURA') {
-        nextStatus = {
-          isOpen: true,
-          openedAt: new Date().toISOString(),
-          operator
-        };
+        nextStatus = { isOpen: true, openedAt: new Date().toISOString(), operator: opName };
         updatedCash.unshift({
           id: `CX-${String(updatedCash.length + 1).padStart(3, '0')}`,
           createdAt: new Date().toISOString(),
@@ -678,7 +663,7 @@ export async function executeTransaction6CashRegisterOperation(cashInput) {
           amount: numericAmount,
           paymentMethod: 'Dinheiro',
           description: description || 'Abertura de turno com fundo de troco',
-          operator
+          operator: opName
         });
       } else if (operationType === 'SUPRIMENTO') {
         if (numericAmount <= 0) throw new Error('Informe um valor válido para o suprimento de caixa.');
@@ -689,7 +674,7 @@ export async function executeTransaction6CashRegisterOperation(cashInput) {
           amount: numericAmount,
           paymentMethod: 'Dinheiro',
           description: description || 'Reforço de troco em espécie',
-          operator
+          operator: opName
         });
       } else if (operationType === 'SANGRIA') {
         if (numericAmount <= 0) throw new Error('Informe um valor válido para a sangria de caixa.');
@@ -699,15 +684,11 @@ export async function executeTransaction6CashRegisterOperation(cashInput) {
           type: 'SANGRIA',
           amount: -numericAmount,
           paymentMethod: 'Dinheiro',
-          description: description || 'Sangria / Retirada para cofre central',
-          operator
+          description: description || 'Sangria para cofre central',
+          operator: opName
         });
       } else if (operationType === 'FECHAMENTO') {
-        nextStatus = {
-          ...nextStatus,
-          isOpen: false,
-          closedAt: new Date().toISOString()
-        };
+        nextStatus = { ...nextStatus, isOpen: false, closedAt: new Date().toISOString() };
         updatedCash.unshift({
           id: `CX-${String(updatedCash.length + 1).padStart(3, '0')}`,
           createdAt: new Date().toISOString(),
@@ -715,7 +696,7 @@ export async function executeTransaction6CashRegisterOperation(cashInput) {
           amount: 0,
           paymentMethod: 'Consolidado',
           description: description || 'Fechamento de turno conferido pelo operador',
-          operator
+          operator: opName
         });
       }
 
@@ -725,7 +706,7 @@ export async function executeTransaction6CashRegisterOperation(cashInput) {
       return {
         cashStatus: nextStatus,
         state: getFullStateLocal(),
-        summary: `Operação de caixa "${operationType}" registrada no DynamoDB`
+        summary: `Operação de caixa "${operationType}" registrada com sucesso.`
       };
     }
   });

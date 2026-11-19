@@ -869,3 +869,162 @@ body {
   border-radius: 8px;
   margin: 0.4rem 0;
 }
+
+/* Tela de Autenticação (Login / Cadastro) */
+.auth-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background: linear-gradient(135deg, #00235b 0%, #0046ad 55%, #0284c7 100%);
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 440px;
+  background: #ffffff;
+  border-radius: 18px;
+  padding: 2rem;
+  box-shadow: 0 24px 48px rgba(0, 20, 60, 0.35);
+}
+
+.auth-brand {
+  text-align: center;
+  margin-bottom: 1.4rem;
+}
+
+.auth-brand-icon {
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 0.75rem;
+  border-radius: 14px;
+  background: #eff6ff;
+  color: var(--unifor-blue);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.8rem;
+  border: 1px solid #bfdbfe;
+}
+
+.auth-brand h1 {
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: var(--text-main);
+}
+
+.auth-brand p {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  margin-top: 0.25rem;
+}
+
+.auth-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.45rem;
+  background: #f1f5f9;
+  padding: 0.3rem;
+  border-radius: 10px;
+  margin-bottom: 1.2rem;
+}
+
+.auth-tab-btn {
+  padding: 0.5rem;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  font-weight: 700;
+  font-size: 0.84rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.auth-tab-btn.active {
+  background: #ffffff;
+  color: var(--unifor-blue);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.1);
+}
+
+.demo-accounts-box {
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.demo-accounts-box p {
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.55rem;
+  text-align: center;
+}
+
+.demo-accounts-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.55rem;
+}
+
+.demo-acc-btn {
+  padding: 0.55rem 0.65rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: #f8fafc;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s ease;
+}
+
+.demo-acc-btn:hover {
+  border-color: var(--unifor-blue);
+  background: #eff6ff;
+}
+
+.demo-acc-btn strong {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--text-main);
+}
+
+.demo-acc-btn span {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.role-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.14rem 0.5rem;
+  border-radius: 99px;
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+.role-badge.admin {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.role-badge.operador {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.rbac-notice {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  color: #92400e;
+  border-radius: 10px;
+  padding: 0.7rem 0.9rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}

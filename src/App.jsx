@@ -6,25 +6,25 @@ import {
   Wallet,
   ClipboardList,
   Landmark,
-  Cloud,
   CheckCircle2,
   AlertTriangle,
   Plus,
   Minus,
-  Trash2,
   RotateCcw,
   Receipt,
   Edit3,
-  ArrowUpCircle,
-  ArrowDownCircle,
-  Terminal
+  ShieldCheck,
+  LogOut,
+  Lock,
+  UserCheck
 } from 'lucide-react';
 import {
+  getSession,
+  clearSession,
+  loginUser,
+  registerUser,
   fetchInitialState,
-  getAwsConfig,
-  saveAwsConfig,
   resetAllDemoData,
-  clearAwsLogs,
   executeTransaction1CheckoutSale,
   executeTransaction2UpsertProduct,
   executeTransaction3StockMovement,
@@ -37,6 +37,18 @@ const CATEGORIES = ['Todos', 'Salgados', 'Lanches & Tapiocas', 'Bebidas', 'Doces
 const EMOJI_OPTIONS = ['🍗', '🥟', '🧀', '🌮', '🥪', '🧃', '☕', '🥤', '🍨', '🍱', '🍔', '🍕', '🥐', '🍰'];
 
 export default function App() {
+  const [session, setSession] = useState(getSession);
+  const [authMode, setAuthMode] = useState('login'); // 'login' | 'register'
+  const [authError, setAuthError] = useState('');
+  const [authLoading, setAuthLoading] = useState(false);
+  const [loginForm, setLoginForm] = useState({ email: '', password: '' });
+  const [registerForm, setRegisterForm] = useState({
+    name: '',
+    email: '',
+    password: '',
+    role: 'OPERADOR'
+  });
+
   const [activeTab, setActiveTab] = useState('tx1');
   const [appState, setAppState] = useState({
     products: [],
@@ -44,10 +56,8 @@ export default function App() {
     orders: [],
     stockMovements: [],
     cashMovements: [],
-    cashStatus: { isOpen: true, operator: 'Operador Caixa 01' },
-    awsLogs: []
+    cashStatus: { isOpen: true, operator: 'Operador Caixa 01' }
   });
-  const [awsConfig, setAwsConfig] = useState(getAwsConfig);
   const [banner, setBanner] = useState(null);
   const [loading, setLoading] = useState(false);
   const [lastReceipt, setLastReceipt] = useState(null);
@@ -106,10 +116,80 @@ export default function App() {
   });
 
   useEffect(() => {
-    fetchInitialState().then((data) => {
-      setAppState(data);
-    });
-  }, []);
+    if (!session) return;
+    fetchInitialState()
+      .then((data) => {
+        setAppState(data);
+        setCashOpForm((prev) => ({ ...prev, operator: session.user.name }));
+      })
+      .catch((err) => {
+        if (err.status === 401) {
+          clearSession();
+          setSession(null);
+        }
+      });
+  }, [session]);
+
+  const handleLoginSubmit = async (e) => {
+    e.preventDefault();
+    setAuthError('');
+    setAuthLoading(true);
+    try {
+      const res = await loginUser(loginForm);
+      setSession({
+        token: res.token,
+        user: res.user,
+        isLocalFallback: Boolean(res.isLocalFallback)
+      });
+      setLoginForm({ email: '', password: '' });
+    } catch (err) {
+      setAuthError(err.message);
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleRegisterSubmit = async (e) => {
+    e.preventDefault();
+    setAuthError('');
+    setAuthLoading(true);
+    try {
+      const res = await registerUser(registerForm);
+      setSession({
+        token: res.token,
+        user: res.user,
+        isLocalFallback: Boolean(res.isLocalFallback)
+      });
+      setRegisterForm({ name: '', email: '', password: '', role: 'OPERADOR' });
+    } catch (err) {
+      setAuthError(err.message);
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleLogout = () => {
+    clearSession();
+    setSession(null);
+    setCart([]);
+    setBanner(null);
+  };
+
+  const handleResetDemo = async () => {
+    setLoading(true);
+    try {
+      const res = await resetAllDemoData();
+      setAppState(res.state);
+      setCart([]);
+      notify('success', res.summary || 'Dados de demonstração restaurados com sucesso!');
+    } catch (err) {
+      notify('error', err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const isAdmin = session?.user?.role === 'ADMIN';
 
   const notify = (type, message) => {
     setBanner({ type, message });
@@ -360,16 +440,172 @@ export default function App() {
     }
   };
 
-  const handleSaveAwsSettings = (e) => {
-    e.preventDefault();
-    saveAwsConfig(awsConfig);
-    notify(
-      'success',
-      `Configuração AWS salva! Modo ativo: ${
-        awsConfig.mode === 'cloud' ? 'AWS Cloud API Gateway Real' : 'Simulador Local AWS Serverless'
-      }`
+  // =========================================================================
+  // TELA DE CONTROLE DE ACESSO (AUTENTICAÇÃO E AUTORIZAÇÃO)
+  // =========================================================================
+  if (!session) {
+    return (
+      <div className="auth-page">
+        <div className="auth-card">
+          <div className="auth-brand">
+            <div className="auth-brand-icon">🎓</div>
+            <h1>Cantina Unifor • PDV</h1>
+            <p>Controle de Acesso • Autenticação JWT & Autorização por Perfil (RBAC)</p>
+          </div>
+
+          <div className="auth-tabs">
+            <button
+              type="button"
+              className={`auth-tab-btn ${authMode === 'login' ? 'active' : ''}`}
+              onClick={() => {
+                setAuthMode('login');
+                setAuthError('');
+              }}
+            >
+              Entrar no Sistema
+            </button>
+            <button
+              type="button"
+              className={`auth-tab-btn ${authMode === 'register' ? 'active' : ''}`}
+              onClick={() => {
+                setAuthMode('register');
+                setAuthError('');
+              }}
+            >
+              Criar Conta
+            </button>
+          </div>
+
+          {authError && (
+            <div className="toast-banner error" style={{ marginBottom: '1rem', fontSize: '0.8rem' }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <AlertTriangle size={16} />
+                {authError}
+              </span>
+            </div>
+          )}
+
+          {authMode === 'login' ? (
+            <form onSubmit={handleLoginSubmit}>
+              <div className="form-group">
+                <label>E-mail institucional</label>
+                <input
+                  type="email"
+                  required
+                  className="form-control"
+                  placeholder="admin@unifor.br ou caixa@unifor.br"
+                  value={loginForm.email}
+                  onChange={(e) => setLoginForm({ ...loginForm, email: e.target.value })}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Senha</label>
+                <input
+                  type="password"
+                  required
+                  className="form-control"
+                  placeholder="••••••••"
+                  value={loginForm.password}
+                  onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
+                />
+              </div>
+
+              <button type="submit" className="btn-primary" disabled={authLoading}>
+                <ShieldCheck size={18} />
+                {authLoading ? 'Autenticando...' : 'Entrar no PDV'}
+              </button>
+
+              <div className="demo-accounts-box">
+                <p>Perfis de Demonstração (Clique para preencher)</p>
+                <div className="demo-accounts-grid">
+                  <button
+                    type="button"
+                    className="demo-acc-btn"
+                    onClick={() =>
+                      setLoginForm({ email: 'admin@unifor.br', password: 'admin123' })
+                    }
+                  >
+                    <strong>Gerente (ADMIN)</strong>
+                    <span>Acesso total (T1 a T6)</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="demo-acc-btn"
+                    onClick={() =>
+                      setLoginForm({ email: 'caixa@unifor.br', password: 'caixa123' })
+                    }
+                  >
+                    <strong>Caixa (OPERADOR)</strong>
+                    <span>Vendas, recarga e fila</span>
+                  </button>
+                </div>
+              </div>
+            </form>
+          ) : (
+            <form onSubmit={handleRegisterSubmit}>
+              <div className="form-group">
+                <label>Nome Completo</label>
+                <input
+                  type="text"
+                  required
+                  className="form-control"
+                  placeholder="Ex: Maria Fernanda"
+                  value={registerForm.name}
+                  onChange={(e) => setRegisterForm({ ...registerForm, name: e.target.value })}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>E-mail</label>
+                <input
+                  type="email"
+                  required
+                  className="form-control"
+                  placeholder="usuario@unifor.br"
+                  value={registerForm.email}
+                  onChange={(e) => setRegisterForm({ ...registerForm, email: e.target.value })}
+                />
+              </div>
+
+              <div className="form-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
+                <div className="form-group">
+                  <label>Senha (mín. 6 caract.)</label>
+                  <input
+                    type="password"
+                    required
+                    minLength={6}
+                    className="form-control"
+                    placeholder="••••••"
+                    value={registerForm.password}
+                    onChange={(e) =>
+                      setRegisterForm({ ...registerForm, password: e.target.value })
+                    }
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Perfil de Acesso</label>
+                  <select
+                    className="form-control"
+                    value={registerForm.role}
+                    onChange={(e) => setRegisterForm({ ...registerForm, role: e.target.value })}
+                  >
+                    <option value="OPERADOR">OPERADOR (Caixa)</option>
+                    <option value="ADMIN">ADMIN (Gerente)</option>
+                  </select>
+                </div>
+              </div>
+
+              <button type="submit" className="btn-primary" disabled={authLoading}>
+                <UserCheck size={18} />
+                {authLoading ? 'Cadastrando...' : 'Criar Conta e Entrar'}
+              </button>
+            </form>
+          )}
+        </div>
+      </div>
     );
-  };
+  }
 
   return (
     <div className="app-shell">
@@ -393,18 +629,33 @@ export default function App() {
             </span>
           </div>
 
+          <div className="status-pill">
+            <ShieldCheck size={15} />
+            <span>{session.user.name}</span>
+            <span className={`role-badge ${isAdmin ? 'admin' : 'operador'}`}>
+              {session.user.role}
+            </span>
+          </div>
+
+          {isAdmin && (
+            <button
+              type="button"
+              className="btn-secondary"
+              style={{ padding: '0.36rem 0.7rem', fontSize: '0.75rem' }}
+              onClick={handleResetDemo}
+              disabled={loading}
+            >
+              <RotateCcw size={14} /> Restaurar Dados Demo
+            </button>
+          )}
+
           <button
             type="button"
             className="btn-secondary"
             style={{ padding: '0.36rem 0.7rem', fontSize: '0.75rem' }}
-            onClick={() => {
-              const reset = resetAllDemoData();
-              setAppState(reset);
-              setCart([]);
-              notify('success', 'Dados de demonstração da Cantina Unifor restaurados com sucesso!');
-            }}
+            onClick={handleLogout}
           >
-            <RotateCcw size={14} /> Restaurar Dados Demo
+            <LogOut size={14} /> Sair
           </button>
         </div>
       </header>
@@ -779,6 +1030,14 @@ export default function App() {
               </div>
 
               <form className="panel-body" onSubmit={handleSaveProduct}>
+                {!isAdmin && (
+                  <div className="rbac-notice">
+                    <Lock size={16} />
+                    <span>
+                      Autorização RBAC: cadastro e edição de produtos exigem perfil <strong>ADMIN</strong>.
+                    </span>
+                  </div>
+                )}
                 <div className="form-grid" style={{ gridTemplateColumns: '1fr 90px' }}>
                   <div className="form-group">
                     <label>Código SKU</label>
@@ -1008,6 +1267,14 @@ export default function App() {
               </div>
 
               <form className="panel-body" onSubmit={handleStockMovement}>
+                {!isAdmin && (
+                  <div className="rbac-notice">
+                    <Lock size={16} />
+                    <span>
+                      Autorização RBAC: movimentações de estoque exigem perfil <strong>ADMIN</strong>.
+                    </span>
+                  </div>
+                )}
                 <div className="form-group">
                   <label>Selecionar Produto</label>
                   <select
@@ -1448,6 +1715,14 @@ export default function App() {
               </div>
 
               <form className="panel-body" onSubmit={handleCashOperation}>
+                {!isAdmin && (
+                  <div className="rbac-notice">
+                    <Lock size={16} />
+                    <span>
+                      Autorização RBAC: operações de <strong>SANGRIA</strong> e <strong>FECHAMENTO</strong> exigem perfil <strong>ADMIN</strong>.
+                    </span>
+                  </div>
+                )}
                 <div className="form-group">
                   <label>Tipo de Operação de Caixa</label>
                   <select
