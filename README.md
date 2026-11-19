@@ -8,7 +8,7 @@ Sistema de Ponto de Venda (PDV) para a **Cantina da Universidade de Fortaleza (U
 
 | Requisito | Implementação no Projeto |
 |---|---|
-| **Frontend** | HTML5, CSS3, JavaScript (ES6+) e **React 18** com Vite (`index.html`, `src/App.jsx`, `src/styles.css`, `src/services/awsApi.js`), pronto para deploy Full Stack na **Vercel**. |
+| **Frontend** | HTML5, CSS3, JavaScript (ES6+) e **React 18** com Vite (`index.html`, `src/App.jsx`, `src/styles.css`, `src/services/api.js`), pronto para deploy Full Stack na **Vercel**. |
 | **Backend (Web Service REST & Rotas)** | **Node.js + Express** (`backend/src/app.js`, `backend/src/routes/authRoutes.js`, `backend/src/routes/cantinaRoutes.js`, entrypoint serverless `api/index.js` + `vercel.json`) com rotas REST completas (`GET`, `POST`, `PATCH`) e códigos HTTP padronizados (`200`, `201`, `400`, `401`, `403`, `404`, `409`). |
 | **Controle de Acesso (Autenticação e Autorização)** | **Autenticação JWT** (`jsonwebtoken`) + senhas protegidas com hash **bcrypt** (`bcryptjs`) + **Autorização RBAC** (`ADMIN` e `OPERADOR`) via middlewares `authenticateToken` e `authorizeRoles` (`backend/src/middleware/auth.js`). |
 | **SGBD Relacional** | **SQLite** (`backend/src/db/database.js`) com schema relacional (8 tabelas com chaves primárias, estrangeiras e transações SQL atômicas) persistido em `backend/database/cantina.sqlite`. |

@@ -31,7 +31,7 @@ import {
   executeTransaction4CustomerWallet,
   executeTransaction5OrderStatusOrRefund,
   executeTransaction6CashRegisterOperation
-} from './services/awsApi';
+} from './services/api';
 
 const CATEGORIES = ['Todos', 'Salgados', 'Lanches & Tapiocas', 'Bebidas', 'Doces & Açaí', 'Combos'];
 const EMOJI_OPTIONS = ['🍗', '🥟', '🧀', '🌮', '🥪', '🧃', '☕', '🥤', '🍨', '🍱', '🍔', '🍕', '🥐', '🍰'];

@@ -4,6 +4,5 @@ backend/database/*.sqlite
 dist/
 .env
 .env.local
-.aws-sam/
-aws-backend/src/node_modules/
+.vercel
 .DS_Store

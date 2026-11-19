@@ -2,8 +2,6 @@
   --unifor-blue: #0046ad;
   --unifor-blue-dark: #002f7a;
   --unifor-sky: #0284c7;
-  --aws-orange: #ff9900;
-  --aws-dark: #161e2d;
   --bg-page: #f1f5f9;
   --bg-card: #ffffff;
   --bg-muted: #f8fafc;
@@ -34,7 +32,7 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Header Superior Unifor + AWS Status */
+/* Header Superior Unifor */
 .app-shell {
   min-height: 100vh;
   display: flex;
@@ -104,18 +102,6 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
-.status-pill.aws-pill {
-  background: #161e2d;
-  border-color: var(--aws-orange);
-  color: #fff;
-  cursor: pointer;
-  transition: transform 0.15s ease;
-}
-
-.status-pill.aws-pill:hover {
-  transform: translateY(-1px);
-}
-
 .dot {
   width: 8px;
   height: 8px;
@@ -129,11 +115,6 @@ body {
 
 .dot.closed {
   background: #f87171;
-}
-
-.dot.aws {
-  background: var(--aws-orange);
-  box-shadow: 0 0 8px var(--aws-orange);
 }
 
 /* Barra de Navegação das 6 Transações */
@@ -190,17 +171,6 @@ body {
 .tx-tab-btn.active .tx-badge-num {
   background: var(--unifor-blue);
   color: #ffffff;
-}
-
-.tx-tab-btn.aws-tab.active {
-  background: #fff7ed;
-  color: #c2410c;
-  border-color: #fed7aa;
-}
-
-.tx-tab-btn.aws-tab.active .tx-badge-num {
-  background: var(--aws-orange);
-  color: #161e2d;
 }
 
 /* KPI Strip */
@@ -744,76 +714,6 @@ body {
 .badge-status.cancelado {
   background: #fee2e2;
   color: #b91c1c;
-}
-
-/* AWS Cloud Architecture & Telemetry Console */
-.aws-console-bar {
-  background: var(--aws-dark);
-  color: #e2e8f0;
-  border-radius: var(--radius-lg);
-  padding: 1.1rem 1.25rem;
-  margin-top: 1.5rem;
-  border: 1px solid #334155;
-}
-
-.aws-console-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  margin-bottom: 0.75rem;
-}
-
-.aws-console-title {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  font-size: 0.88rem;
-  font-weight: 700;
-  color: var(--aws-orange);
-}
-
-.aws-log-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-  max-height: 190px;
-  overflow-y: auto;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.76rem;
-}
-
-.aws-log-item {
-  display: flex;
-  align-items: center;
-  gap: 0.65rem;
-  padding: 0.42rem 0.65rem;
-  background: rgba(255, 255, 255, 0.04);
-  border-radius: 6px;
-  flex-wrap: wrap;
-}
-
-.log-method {
-  padding: 0.1rem 0.4rem;
-  border-radius: 4px;
-  background: rgba(255, 153, 0, 0.2);
-  color: var(--aws-orange);
-  font-weight: 700;
-}
-
-.log-lambda {
-  color: #38bdf8;
-  font-weight: 600;
-}
-
-.log-table {
-  color: #a78bfa;
-}
-
-.log-status {
-  color: #34d399;
-  font-weight: 700;
 }
 
 .two-col-section {
