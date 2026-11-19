@@ -8,8 +8,8 @@ Sistema de Ponto de Venda (PDV) para a **Cantina da Universidade de Fortaleza (U
 
 | Requisito | Implementação no Projeto |
 |---|---|
-| **Frontend** | HTML5, CSS3, JavaScript (ES6+) e **React 18** com Vite (`index.html`, `src/App.jsx`, `src/styles.css`, `src/services/awsApi.js`), publicado na nuvem via **AWS Amplify**. |
-| **Backend (Web Service REST & Rotas)** | **Node.js + Express** (`backend/src/app.js`, `backend/src/routes/authRoutes.js`, `backend/src/routes/cantinaRoutes.js`) com rotas REST completas (`GET`, `POST`, `PATCH`) e códigos HTTP padronizados (`200`, `201`, `400`, `401`, `403`, `404`, `409`). |
+| **Frontend** | HTML5, CSS3, JavaScript (ES6+) e **React 18** com Vite (`index.html`, `src/App.jsx`, `src/styles.css`, `src/services/awsApi.js`), pronto para deploy Full Stack na **Vercel**. |
+| **Backend (Web Service REST & Rotas)** | **Node.js + Express** (`backend/src/app.js`, `backend/src/routes/authRoutes.js`, `backend/src/routes/cantinaRoutes.js`, entrypoint serverless `api/index.js` + `vercel.json`) com rotas REST completas (`GET`, `POST`, `PATCH`) e códigos HTTP padronizados (`200`, `201`, `400`, `401`, `403`, `404`, `409`). |
 | **Controle de Acesso (Autenticação e Autorização)** | **Autenticação JWT** (`jsonwebtoken`) + senhas protegidas com hash **bcrypt** (`bcryptjs`) + **Autorização RBAC** (`ADMIN` e `OPERADOR`) via middlewares `authenticateToken` e `authorizeRoles` (`backend/src/middleware/auth.js`). |
 | **SGBD Relacional** | **SQLite** (`backend/src/db/database.js`) com schema relacional (8 tabelas com chaves primárias, estrangeiras e transações SQL atômicas) persistido em `backend/database/cantina.sqlite`. |
 | **6 Transações de Negócio** | T1 (Checkout/Venda PDV), T2 (Cadastro/Edição de Produto), T3 (Reposição/Baixa de Estoque), T4 (Cadastro de Aluno e Recarga de Carteira Unifor), T5 (Fila da Cozinha e Estorno de Venda) e T6 (Operações de Caixa e Turno). |
@@ -81,3 +81,14 @@ A suíte (`backend/tests/api.test.js`) executa **13 testes formais automatizados
 - Bloqueio sem token (`401 Unauthorized`), login inválido (`401`), login válido com JWT (`200`) e cadastro com proteção contra duplicidade (`201`/`409`);
 - Autorização RBAC bloqueando `OPERADOR` em rotas exclusivas de `ADMIN` (`403 Forbidden`);
 - Fluxo completo e regras de validação de todas as **6 transações (T1 a T6)** com integridade transacional no SQLite.
+
+---
+
+## 6. Deploy Full Stack na Vercel (Frontend React + Backend REST + SQLite)
+
+O projeto já está configurado com `vercel.json` e a Vercel Function `api/index.js` (Fluid Compute Node.js), permitindo hospedar **o Frontend React e o Backend Express REST juntos na mesma URL** gratuitamente no plano Hobby da Vercel:
+
+1. Acesse [vercel.com](https://vercel.com) e clique em **Add New → Project**.
+2. Importe o repositório `gabriellousada/SiteNaNuvem`.
+3. A Vercel detectará automaticamente o framework **Vite** e as rotas `/api/*` via `vercel.json` (opcionalmente defina a variável de ambiente `JWT_SECRET`).
+4. Clique em **Deploy** — em ~1 minuto tanto o frontend quanto todas as rotas `/api/*` estarão no ar!

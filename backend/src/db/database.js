@@ -1,12 +1,17 @@
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
+import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import initSqlJs from 'sql.js';
 import bcrypt from 'bcryptjs';
 
+const require = createRequire(import.meta.url);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const DEFAULT_DB_PATH = path.resolve(__dirname, '../../database/cantina.sqlite');
+const DEFAULT_DB_PATH = process.env.VERCEL
+  ? path.join(os.tmpdir(), 'cantina.sqlite')
+  : path.resolve(__dirname, '../../database/cantina.sqlite');
 
 const SCHEMA_SQL = `
   PRAGMA foreign_keys = ON;
@@ -112,12 +117,17 @@ export class CantinaDatabase {
 
   save() {
     if (!this.dbFilePath) return;
-    const dir = path.dirname(this.dbFilePath);
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
+    try {
+      const dir = path.dirname(this.dbFilePath);
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+      }
+      const data = this.db.export();
+      fs.writeFileSync(this.dbFilePath, Buffer.from(data));
+    } catch (err) {
+      // Em ambientes serverless somente leitura, mantém estado em memória na instância ativa
+      console.warn('[SQLite] Persistência em disco ignorada:', err.message);
     }
-    const data = this.db.export();
-    fs.writeFileSync(this.dbFilePath, Buffer.from(data));
   }
 
   run(sql, params = []) {
@@ -394,11 +404,14 @@ export class CantinaDatabase {
 }
 
 export async function createDatabase({ memory = false, filePath = DEFAULT_DB_PATH } = {}) {
-  const SQL = await initSqlJs();
+  const wasmPath = require.resolve('sql.js/dist/sql-wasm.wasm');
+  const SQL = await initSqlJs({
+    locateFile: () => wasmPath
+  });
   let sqlDb;
   let effectivePath = memory ? null : filePath;
 
-  if (!memory && fs.existsSync(effectivePath)) {
+  if (!memory && effectivePath && fs.existsSync(effectivePath)) {
     const fileBuffer = fs.readFileSync(effectivePath);
     sqlDb = new SQL.Database(fileBuffer);
   } else {

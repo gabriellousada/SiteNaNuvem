@@ -1,21 +1,27 @@
 {
-  "name": "pdv-cantina-unifor-aws",
+  "name": "pdv-cantina-unifor",
   "private": true,
-  "version": "2.0.0",
-  "description": "Sistema PDV Cantina Unifor - Frontend React + Backend Node.js REST + SQLite + JWT/RBAC + Testes Formais",
+  "version": "2.1.0",
+  "description": "Sistema PDV Cantina Unifor - Frontend React + Backend Node.js REST + SQLite + JWT/RBAC + Testes Formais (Pronto para Vercel)",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "backend": "npm --prefix backend start",
-    "backend:dev": "npm --prefix backend run dev",
+    "backend": "node backend/src/server.js",
+    "backend:dev": "node --watch backend/src/server.js",
+    "test": "npm --prefix backend test",
     "test:backend": "npm --prefix backend test"
   },
   "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "express": "^4.21.1",
+    "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.460.0",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "sql.js": "^1.12.0"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.3",
